@@ -1,2 +1,3 @@
 dotenv
 numpy
+pandas
