@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
-from neural_network_2_layers import train_model, predict
+# from neural_network_2_layers import train_model, predict
+from neural_network_n_layers import train_model, predict
 
 
 master_data = pd.read_csv("dataset/loan_data.csv", header=0)
@@ -64,13 +65,13 @@ Y_test = (
 
 print(X_train.shape, Y_train.shape)
 print(X_valid.shape, Y_valid.shape)
-W1, b1, W2, b2 = train_model(X_train, Y_train, l2_node_count=8)
+W, b = train_model(X_train, Y_train, layer_dimension=[5,4,3,2,1], min_cost_delta=1e-5)
 print("Model Trained....\n\n")
 
 ### Test Model ###
 print("....Testing model....\n")
 
-Y_predicted = predict(X_valid, W1, b1, W2, b2)
+Y_predicted = predict(X_valid, W, b)
 Y_predicted = np.round(Y_predicted)
 
 model_success_in_count = np.sum(Y_valid == Y_predicted)
