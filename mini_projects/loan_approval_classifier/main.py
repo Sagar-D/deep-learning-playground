@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from binary_classifier import train_model, predict
+from logistic_binary_classifier import train_model, predict
 
 
 master_data = pd.read_csv("dataset/loan_data.csv", header=0)

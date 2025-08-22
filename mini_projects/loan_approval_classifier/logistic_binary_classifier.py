@@ -3,7 +3,7 @@
 import numpy as np
 from random import random
 
-TRAINING_CUT_OFF_LIMIT = 1000000
+TRAINING_CUT_OFF_LIMIT = 10000
 
 def sigmoid(Z):
     return 1 / (1 + np.exp(-Z))
