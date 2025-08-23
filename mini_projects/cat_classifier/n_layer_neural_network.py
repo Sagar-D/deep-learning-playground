@@ -1,6 +1,7 @@
 import numpy as np
 import datetime
 import json
+from plot import plot_cost_curve
 
 class NeuralNetwork() :
     """
@@ -14,16 +15,18 @@ class NeuralNetwork() :
     """
 
     def __init__(self,layer_dimension: tuple, learning_rate = 0.01, min_cost_delta = 1e-10, 
-                 max_learning_iterations = 10000, save_model_flag = False):
+                 max_learning_iterations = 10000, save_model_flag = True, enable_validation = False):
 
         self.learning_rate = learning_rate
         self.min_cost_delta = min_cost_delta
         self.max_learning_iterations = max_learning_iterations
         self.is_model_trained = False
         self.iteration = 0
-        self.cost_change_data = []
         self.cache = {}
         self.save_model_flag = save_model_flag
+        self.enable_validation = enable_validation
+        self.training_cost_change_data = []
+        self.validation_cost_change_data = []
 
         self.layer_dims = [*layer_dimension]
         self.L = len(layer_dimension)
@@ -185,7 +188,7 @@ class NeuralNetwork() :
         
         return parameters
 
-    def train(self, X, Y, initail_parameters=None):
+    def train(self, X, Y, initail_parameters=None, X_valid=None, Y_valid=None):
         """
         Train a neural network model to fit given training samples.
 
@@ -215,13 +218,21 @@ class NeuralNetwork() :
 
             self.parameters = self.__optimize(self.parameters, derivatives)
             prev_cost = cost
-            self.cost_change_data.append(cost)
 
             if self.iteration % 100 == 0 :
-                print(f"Iteration : {self.iteration} | Cost : {cost}")
+
+                self.training_cost_change_data.append(cost)
+                if self.enable_validation and isinstance(X_valid, np.ndarray) and isinstance(Y_valid, np.ndarray) :
+                    Y_predicted = self.predict(X_valid)
+                    validation_cost = self._calculate_cost(Y_predicted, Y_valid)
+                    self.validation_cost_change_data.append(validation_cost)
+
+                print(f"Iteration : {self.iteration} | Cost : {cost} | Validation Cost : {'NA' if len(self.validation_cost_change_data) == 0 else self.validation_cost_change_data[-1] }")
+
+            if self.iteration % 10000 == 0 :
+                plot_cost_curve(self.training_cost_change_data, self.validation_cost_change_data)
 
         print("\n\nModel treaining completed!!!!\n")
-        
         self.is_model_trained = True
         self.save_model()
 
@@ -254,7 +265,8 @@ class NeuralNetwork() :
             "learning_rate": self.learning_rate,
             "learning_iterations_executed": self.iteration,
             "min_cost_delta": self.min_cost_delta,
-            "cost_change_data": self.cost_change_data
+            "training_cost_change_data": self.training_cost_change_data,
+            "validation_cost_change_data": self.validation_cost_change_data
         }
 
         try :
@@ -264,7 +276,7 @@ class NeuralNetwork() :
                 file.seek(0)
                 model_db = json.loads(content) if content else {}
             model_db[current_timestamp] = model
-            model["model_keys"] = [] if "model_keys" not in model.keys() else model["model_keys"]
+            model_db["model_keys"] = [] if "model_keys" not in model_db.keys() else model_db["model_keys"]
             model["model_keys"].append(current_timestamp)
             with open(file_path, "w") as file :
                 json.dump(model_db, file)
