@@ -95,7 +95,7 @@ def backward_propogation(X, Y, W2, A1, A2, a1_method="sigmoid"):
     return dW1, db1, dW2, db2
 
 
-def train_model(X, Y, l2_node_count=4, a1_method="sigmoid"):
+def train_model(X, Y, l2_node_count=4, a1_method="sigmoid", max_learning_iterations = 100000):
     """Train a Binary classifier using 2-Layer Neural Network for given
     X = Input feature vector of shape (n,m)
     Y = Expected output vector of shape (1,m)
@@ -109,7 +109,6 @@ def train_model(X, Y, l2_node_count=4, a1_method="sigmoid"):
     m = X.shape[1]
     n = X.shape[0]
     l = l2_node_count
-    MAX_LEARNING_ITERATION_COUNT = 100000
     cost = 0
     prev_cost = float("inf")
     alpha = 0.1
@@ -119,7 +118,7 @@ def train_model(X, Y, l2_node_count=4, a1_method="sigmoid"):
     W2 = np.random.rand(1, l) * 0.01
     b2 = np.zeros((1, 1))
 
-    for i in range(0, MAX_LEARNING_ITERATION_COUNT):
+    for i in range(0, max_learning_iterations):
 
         A1, A2 = forward_propagation(X, W1, b1, W2, b2, activation_method=a1_method)
         cost = calculate_cost(Y, A2)
@@ -146,7 +145,7 @@ def train_model(X, Y, l2_node_count=4, a1_method="sigmoid"):
         b2 = b2 - (alpha * db2)
         prev_cost = cost
 
-        if i % 1000 == 0:
+        if i % 100 == 0:
             print(f"Iteration : {i} , cost : {cost}")
 
     print("Model Training completed...")
@@ -169,4 +168,36 @@ def predict(X, W1, b1, W2, b2, activation_method="sigmoid"):
     """
     A1 = calculate_activation(X, W1, b1, activation_method)
     A2 = calculate_activation(A1, W2, b2)
-    return A2
+    return (A2 > 0.5).astype("int")
+
+if __name__ == "__main__" :
+    
+    from data_pre_processor import get_processed_loan_approval_dataset
+
+    X_train, Y_train, X_test, Y_test = get_processed_loan_approval_dataset()
+    print(X_train.shape, Y_train.shape)
+    print(X_test.shape, Y_test.shape)
+
+    m = X_train.shape[0]
+    layer_dims = [10, 8, 6, 3, 1]
+
+    W1, b1, W2, b2 = train_model(X_train.T, Y_train.T, max_learning_iterations=10000)
+    print("Model Trained....\n\n")
+
+    ### Test Model ###
+    print("....Testing model....\n")
+
+    Y_predicted = predict(X_test.T, W1, b1, W2, b2)
+
+    true_positives = np.sum((Y_predicted == 1) & (Y_test.T == 1))
+    true_negatives = np.sum((Y_predicted == 0) & (Y_test.T == 0))
+    false_positives = np.sum((Y_predicted == 1) & (Y_test.T == 0))
+    false_negatives = np.sum((Y_predicted == 0) & (Y_test.T == 1))
+
+    print(f"True Positives : {true_positives}")
+    print(f"True Negatives : {true_negatives}")
+    print(f"False Positives : {false_positives}")
+    print(f"False Negatives : {false_negatives}")
+    print(f"\nModel Accuracy : {(true_positives+true_negatives)/Y_predicted.shape[1]}")
+    print(f"Model Precision [TP/(TP+FP)] : {true_positives/(true_positives + false_positives)}")
+    print(f"Model Recall [TP/(TP+FN)] : {true_positives/(true_positives + false_negatives)}")

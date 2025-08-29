@@ -14,7 +14,7 @@ class NeuralNetwork() :
     """
 
     def __init__(self,layer_dimension: tuple, learning_rate = 0.01, min_cost_delta = 1e-10, 
-                 max_learning_iterations = 10000, save_model_flag = True, save_model_path="", enable_validation=True):
+                 max_learning_iterations = 10000, enable_l2_regularization=True, regularisation_rate=1e-3, save_model_flag = True, save_model_path="", enable_validation=True):
 
         self.learning_rate = learning_rate
         self.min_cost_delta = min_cost_delta
@@ -27,6 +27,8 @@ class NeuralNetwork() :
         self.save_model_flag = save_model_flag
         self.save_model_path = save_model_path
         self.enable_validation = enable_validation
+        self.enable_l2_regularization = enable_l2_regularization
+        self.l2_lambd = regularisation_rate
         self.class_weights = (0.62,2.5)
 
         self.layer_dims = [*layer_dimension]
@@ -121,6 +123,12 @@ class NeuralNetwork() :
         epsilon = 1e-7
         A = np.clip(A, epsilon, 1 - epsilon)
         cost = -1 / m * np.sum(self.class_weights[1] * Y * np.log(A) + ( self.class_weights[0] * (1 - Y) * np.log(1 - A)))
+        
+        if self.enable_l2_regularization :
+            l2 = 0
+            for l in range(1, self.L+1) :
+                l2 += np.sum((parameters["W"+str(l)] * parameters["W"+str(l)]))
+            cost += (self.l2_lambd/(2*m)) * l2
 
         return cost
 
@@ -163,11 +171,15 @@ class NeuralNetwork() :
         AL = self.cache["A" + str(self.L)]
         derivatives["dZ" + str(self.L)] = np.where(Y == 1, self.class_weights[1] * (AL - Y), self.class_weights[0] * (AL - Y))
         derivatives["dW" + str(self.L)] = 1/m * np.dot(derivatives["dZ" + str(self.L)], self.cache["A" + str(self.L - 1)].T)
+        if self.enable_l2_regularization :
+            derivatives["dW" + str(self.L)] += (self.l2_lambd/m) * parameters["W"+str(self.L)]
         derivatives["db" + str(self.L)] = 1/m * np.sum(derivatives["dZ" + str(self.L)], axis=1, keepdims=True)
 
         for l in range(self.L - 1, 0, -1):
             derivatives["dZ" + str(l)] = np.dot(parameters["W" + str(l + 1)].T, derivatives["dZ" + str(l + 1)]) * self.__derivative_of_activation(self.cache["Z" + str(l)], "relu")
             derivatives["dW" + str(l)] = 1/m * np.dot(derivatives["dZ" + str(l)], self.cache["A" + str(l - 1)].T)
+            if self.enable_l2_regularization :
+                derivatives["dW" + str(l)] += (self.l2_lambd/m) * parameters["W"+str(l)]
             derivatives["db" + str(l)] = 1/m * np.sum(derivatives["dZ" + str(l)], axis=1, keepdims=True)
 
         return derivatives
@@ -265,6 +277,7 @@ class NeuralNetwork() :
             "parameters": parameters_serializable,
             "layer_dimension": self.layer_dims[1:],
             "learning_rate": self.learning_rate,
+            "l2_regularization_lambda": self.l2_lambd,
             "learning_iterations_executed": self.iteration,
             "min_cost_delta": self.min_cost_delta,
             "training_cost_change_data": self.training_cost_change_data,
@@ -306,6 +319,7 @@ if __name__ == "__main__" :
         max_learning_iterations=10000,
         min_cost_delta=1e-15,
         enable_validation=False,
+        enable_l2_regularization=False,
     )
     model_parameters = model.train(X_train.T, Y_train.T)
 
