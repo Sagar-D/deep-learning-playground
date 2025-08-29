@@ -277,7 +277,7 @@ class NeuralNetwork() :
                 model_db = json.loads(content) if content else {}
             model_db[current_timestamp] = model
             model_db["model_keys"] = [] if "model_keys" not in model_db.keys() else model_db["model_keys"]
-            model["model_keys"].append(current_timestamp)
+            model_db["model_keys"].append(current_timestamp)
             with open(file_path, "w") as file :
                 json.dump(model_db, file)
         except Exception as e :

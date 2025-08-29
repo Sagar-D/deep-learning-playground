@@ -30,7 +30,8 @@ model = NeuralNetwork(
     learning_rate=0.001,
     max_learning_iterations=100000,
     min_cost_delta=1e-15,
-    enable_validation=True
+    enable_validation=True,
+    enable_l2_regularization=False
 )
 model_parameters = model.train(train_X.T, train_Y.T, X_valid=test_X.T, Y_valid=test_Y.T)
 
