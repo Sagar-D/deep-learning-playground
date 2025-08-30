@@ -29,7 +29,6 @@ class NeuralNetwork() :
         self.enable_validation = enable_validation
         self.enable_l2_regularization = enable_l2_regularization
         self.l2_lambd = regularisation_rate
-        self.class_weights = (0.62,2.5)
 
         self.layer_dims = [*layer_dimension]
         self.L = len(layer_dimension)
@@ -47,7 +46,7 @@ class NeuralNetwork() :
         if self.is_model_trained :
             raise RuntimeWarning("You are trying to initialize parameters after training the model. This can overwrite the trained model parameters!!!")
         
-        if type(initial_parameters) == dict:
+        if type(initial_parameters) == dict and initial_parameters:
             self.parameters = initial_parameters
             return
 
@@ -122,7 +121,7 @@ class NeuralNetwork() :
         m = A.shape[1]
         epsilon = 1e-7
         A = np.clip(A, epsilon, 1 - epsilon)
-        cost = -1 / m * np.sum(self.class_weights[1] * Y * np.log(A) + ( self.class_weights[0] * (1 - Y) * np.log(1 - A)))
+        cost = -1 / m * np.sum(Y * np.log(A) + ((1 - Y) * np.log(1 - A)))
         
         if self.enable_l2_regularization :
             l2 = 0
@@ -146,7 +145,8 @@ class NeuralNetwork() :
         """
         activation_method = activation_method.strip().lower()
         if activation_method == "sigmoid":
-            return self.__calculate_activation(Z, "sigmoid") * (1 - self.__calculate_activation(Z, "sigmoid"))
+            sigmoid_Z = self.__calculate_activation(Z, "sigmoid")
+            return sigmoid_Z * (1 - sigmoid_Z)
         
         if activation_method == "relu":
             return np.where(Z>0, 1, 0)
@@ -169,7 +169,7 @@ class NeuralNetwork() :
         m = Y.shape[1]
         derivatives = {}
         AL = self.cache["A" + str(self.L)]
-        derivatives["dZ" + str(self.L)] = np.where(Y == 1, self.class_weights[1] * (AL - Y), self.class_weights[0] * (AL - Y))
+        derivatives["dZ" + str(self.L)] = AL - Y
         derivatives["dW" + str(self.L)] = 1/m * np.dot(derivatives["dZ" + str(self.L)], self.cache["A" + str(self.L - 1)].T)
         if self.enable_l2_regularization :
             derivatives["dW" + str(self.L)] += (self.l2_lambd/m) * parameters["W"+str(self.L)]

@@ -1,6 +1,6 @@
 import numpy as np
 from data_pre_processor import get_processed_dataset
-from l2_regularized_neural_network import NeuralNetwork
+from l2_regularized_weighted_nn import NeuralNetwork
 
 train_X, train_Y, test_X, test_Y = get_processed_dataset()
 
