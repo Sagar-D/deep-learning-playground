@@ -303,23 +303,23 @@ class NeuralNetwork() :
 
 if __name__ == "__main__" :
 
-    from data_pre_processor import get_processed_loan_approval_dataset
+    from data_pre_processor import get_processed_cat_image_dataset
 
-    X_train, Y_train, X_test, Y_test = get_processed_loan_approval_dataset()
+    X_train, Y_train, X_test, Y_test = get_processed_cat_image_dataset()
 
     print(X_train.shape, Y_train.shape)
     print(X_test.shape, Y_test.shape)
 
     m = X_train.shape[0]
-    layer_dims = [10, 8, 6, 3, 1]
+    layer_dims = [10, 6, 3, 1]
 
     model = NeuralNetwork(
         layer_dims,
-        learning_rate=0.01,
-        max_learning_iterations=10000,
+        learning_rate=0.001,
+        max_learning_iterations=100000,
         min_cost_delta=1e-15,
         enable_validation=False,
-        enable_l2_regularization=False,
+        enable_l2_regularization=True
     )
     model_parameters = model.train(X_train.T, Y_train.T)
 

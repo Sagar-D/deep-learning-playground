@@ -1,4 +1,6 @@
 import pandas as pd
+import h5py
+import numpy as np
 
 
 LOAN_APPROVAL_DATASET_PATH = "dataset/loan_data.csv"
@@ -47,3 +49,60 @@ def get_processed_loan_approval_dataset(data_set_path: str = LOAN_APPROVAL_DATAS
             )
 
     return X_train.to_numpy(), Y_train.to_numpy(), X_test.to_numpy(), Y_test.to_numpy()
+
+def __generate_augmented_image_data(X, Y):
+    """
+    Generate augmented image data by flipping/roatting the existing image dataset
+
+    Arguments :
+        X => numpy array of image dataset of shape (m,i,j,x)
+        Y => numpy array of image labels of shape (m,1)
+            where,
+                m = total number of training samples in the training set
+                i,j = dimension of each image
+                x = pixel size (3 for RGB, 1 for B/W)
+
+    Return :
+        augmented_X => numpy array of image dataset with original and augmented images
+        augmented_Y => numpy array of image labels with original and augmented images
+    """
+
+    augmented_X = []
+    augmented_Y = []
+
+    for i in range(Y.shape[0]):
+        augmented_X.append(X[i])
+        augmented_Y.append(Y[i][0])
+        augmented_X.append(np.flip(X[i], axis=1))
+        augmented_Y.append(Y[i][0])
+        if Y[i][0] == 1:
+            augmented_X.append(np.rot90(X[i], k=1))
+            augmented_Y.append(Y[i][0])
+            augmented_X.append(np.rot90(X[i], k=-1))
+            augmented_Y.append(Y[i][0])
+
+    augmented_X = np.array(augmented_X)
+    augmented_Y = np.array(augmented_Y)
+    augmented_Y = augmented_Y.reshape(augmented_Y.shape[0], 1)
+
+    return augmented_X, augmented_Y
+
+def get_processed_cat_image_dataset() :
+    
+    with h5py.File("dataset/cat_data/train_catvsnoncat.h5", "r") as hf:
+        train_X_original = hf["train_set_x"][:]
+        train_Y_original = hf["train_set_y"][:]
+        train_Y_original = train_Y_original.reshape(train_Y_original.shape[0], 1)
+
+    with h5py.File("dataset/cat_data/test_catvsnoncat.h5", "r") as hf:
+        test_X_original = hf["test_set_x"][:]
+        test_Y_original = hf["test_set_y"][:]
+        test_Y_original = test_Y_original.reshape(test_Y_original.shape[0], 1)
+
+    train_X, train_Y = __generate_augmented_image_data(train_X_original, train_Y_original)
+    test_X, test_Y = test_X_original, test_Y_original
+
+    train_X = train_X.reshape(train_X.shape[0], -1)
+    test_X = test_X.reshape(test_X.shape[0], -1)
+
+    return train_X, train_Y, test_X, test_Y
