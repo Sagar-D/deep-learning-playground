@@ -13,8 +13,8 @@ class NeuralNetwork() :
         max_learning_iterations => Maximum number of iterations of training to be performed.
     """
 
-    def __init__(self,layer_dimension: tuple, learning_rate = 0.001, min_cost_delta = 1e-10, 
-                 max_learning_iterations = 10000, enable_l2_regularization=True, regularisation_rate=1e-3, save_model_flag = True, save_model_path="", enable_validation=True):
+    def __init__(self,layer_dimension: tuple, learning_rate = 0.01, min_cost_delta = 1e-10, 
+                 max_learning_iterations = 10000, enable_l2_regularization=True, regularisation_rate=1e-3, save_model_flag = True, save_model_path="", enable_validation=True, momentum_window_beta = 0.9):
 
         self.learning_rate = learning_rate
         self.min_cost_delta = min_cost_delta
@@ -29,6 +29,7 @@ class NeuralNetwork() :
         self.enable_validation = enable_validation
         self.enable_l2_regularization = enable_l2_regularization
         self.l2_lambd = regularisation_rate
+        self.momentum_window_beta = momentum_window_beta
 
         self.layer_dims = [*layer_dimension]
         self.L = len(layer_dimension)
@@ -185,7 +186,7 @@ class NeuralNetwork() :
         return derivatives
 
 
-    def __optimize(self, parameters, derivatives) :
+    def __optimize(self, parameters, momentum_derivatives) :
         """
         Optimize the parameters for model training.
 
@@ -198,8 +199,8 @@ class NeuralNetwork() :
             parameters => updated dictionary of optimized weights and bias for every layer of the network
         """
         for l in range(1, self.L+1) :
-            parameters["W"+str(l)] -= self.learning_rate * derivatives["dW"+str(l)]
-            parameters["b"+str(l)] -= self.learning_rate * derivatives["db"+str(l)]
+            parameters["W"+str(l)] -= self.learning_rate * momentum_derivatives["dW"+str(l)]
+            parameters["b"+str(l)] -= self.learning_rate * momentum_derivatives["db"+str(l)]
         
         return parameters
 
@@ -219,9 +220,14 @@ class NeuralNetwork() :
         prev_cost = float('inf')
         curr_batch_index = 0
 
-        
+
         initail_parameters = initail_parameters if initail_parameters != None and type(initail_parameters) == dict else X
         self.__init_parameters(initail_parameters)
+
+        momentum_derivatives = {}
+        for l in range(1, len(self.layer_dims)):
+            momentum_derivatives['dW'+str(l)] = np.zeros((self.layer_dims[l], self.layer_dims[l - 1]))
+            momentum_derivatives["db" + str(l)] = np.zeros((self.layer_dims[l], 1))
 
         for self.iteration in range(self.max_learning_iterations) :
 
@@ -243,8 +249,11 @@ class NeuralNetwork() :
                 print(f"Stop learning at iteration {self.iteration}. No signinficant change in the cost {cost}")
                 break
 
-            self.parameters = self.__optimize(self.parameters, derivatives)
-
+            for l in range(1, len(self.layer_dims)):
+                momentum_derivatives['dW'+str(l)] = self.momentum_window_beta * momentum_derivatives['dW'+str(l)] + (1-self.momentum_window_beta) * derivatives['dW'+str(l)]
+                momentum_derivatives['db'+str(l)] = self.momentum_window_beta * momentum_derivatives['db'+str(l)] + (1-self.momentum_window_beta) * derivatives['db'+str(l)]
+            
+            self.parameters = self.__optimize(self.parameters, momentum_derivatives)
             prev_cost = cost
 
             curr_batch_index += batch_size
@@ -328,17 +337,17 @@ if __name__ == "__main__" :
     print(X_test.shape, Y_test.shape)
 
     m = X_train.shape[0]
-    layer_dims = [10, 8, 6, 3, 1]
+    layer_dims = [10, 6, 3, 1]
 
     model = NeuralNetwork(
         layer_dims,
-        learning_rate=0.01,
+        learning_rate=0.001,
         max_learning_iterations=20000,
         min_cost_delta=1e-15,
         enable_validation=False,
-        enable_l2_regularization=False,
+        enable_l2_regularization=False
     )
-    model_parameters = model.train(X_train.T, Y_train.T, batch_size=8)
+    model_parameters = model.train(X_train.T, Y_train.T, batch_size=64)
 
     ### Test Model ###
     print("....Testing model....\n")
