@@ -14,7 +14,7 @@ class NeuralNetwork() :
     """
 
     def __init__(self,layer_dimension: tuple, learning_rate = 0.01, min_cost_delta = 1e-10, 
-                 max_learning_iterations = 10000, enable_l2_regularization=True, regularisation_rate=1e-3, save_model_flag = True, save_model_path="", enable_validation=True, momentum_window_beta = 0.9):
+                 max_learning_iterations = 10000, enable_l2_regularization=True, regularisation_rate=1e-3, save_model_flag = True, save_model_path="", enable_validation=True, rmsprop_beta = 0.9):
 
         self.learning_rate = learning_rate
         self.min_cost_delta = min_cost_delta
@@ -29,7 +29,7 @@ class NeuralNetwork() :
         self.enable_validation = enable_validation
         self.enable_l2_regularization = enable_l2_regularization
         self.l2_lambd = regularisation_rate
-        self.momentum_window_beta = momentum_window_beta
+        self.rmsprop_beta = rmsprop_beta
 
         self.layer_dims = [*layer_dimension]
         self.L = len(layer_dimension)
@@ -186,7 +186,7 @@ class NeuralNetwork() :
         return derivatives
 
 
-    def __optimize(self, parameters, momentum_derivatives) :
+    def __optimize(self, parameters, derivatives, rmsprop_derivatives) :
         """
         Optimize the parameters for model training.
 
@@ -199,9 +199,9 @@ class NeuralNetwork() :
             parameters => updated dictionary of optimized weights and bias for every layer of the network
         """
         for l in range(1, self.L+1) :
-            parameters["W"+str(l)] -= self.learning_rate * momentum_derivatives["dW"+str(l)]
-            parameters["b"+str(l)] -= self.learning_rate * momentum_derivatives["db"+str(l)]
-        
+            parameters["W"+str(l)] -= self.learning_rate * derivatives["dW" + str(l)] / np.sqrt(rmsprop_derivatives["dW"+str(l)] + 1e-8)
+            parameters["b"+str(l)] -= self.learning_rate * derivatives["db" + str(l)] / np.sqrt(rmsprop_derivatives["db"+str(l)] + 1e-8)
+
         return parameters
 
     def train(self, X, Y, batch_size= 256, initail_parameters=None, X_valid=None, Y_valid=None):
@@ -224,10 +224,10 @@ class NeuralNetwork() :
         initail_parameters = initail_parameters if initail_parameters != None and type(initail_parameters) == dict else X
         self.__init_parameters(initail_parameters)
 
-        momentum_derivatives = {}
+        rmsprop_derivatives = {}
         for l in range(1, len(self.layer_dims)):
-            momentum_derivatives['dW'+str(l)] = np.zeros((self.layer_dims[l], self.layer_dims[l - 1]))
-            momentum_derivatives["db" + str(l)] = np.zeros((self.layer_dims[l], 1))
+            rmsprop_derivatives['dW'+str(l)] = np.zeros((self.layer_dims[l], self.layer_dims[l - 1]))
+            rmsprop_derivatives["db" + str(l)] = np.zeros((self.layer_dims[l], 1))
 
         for self.iteration in range(self.max_learning_iterations) :
 
@@ -250,14 +250,14 @@ class NeuralNetwork() :
                 break
 
             for l in range(1, len(self.layer_dims)):
-                momentum_derivatives['dW'+str(l)] = self.momentum_window_beta * momentum_derivatives['dW'+str(l)] + (1-self.momentum_window_beta) * derivatives['dW'+str(l)]
-                momentum_derivatives['db'+str(l)] = self.momentum_window_beta * momentum_derivatives['db'+str(l)] + (1-self.momentum_window_beta) * derivatives['db'+str(l)]
-            
-            self.parameters = self.__optimize(self.parameters, momentum_derivatives)
+                rmsprop_derivatives['dW'+str(l)] = self.rmsprop_beta * rmsprop_derivatives['dW'+str(l)] + (1-self.rmsprop_beta) * np.square(derivatives['dW'+str(l)])
+                rmsprop_derivatives['db'+str(l)] = self.rmsprop_beta * rmsprop_derivatives['db'+str(l)] + (1-self.rmsprop_beta) * np.square(derivatives['db'+str(l)])
+
+            self.parameters = self.__optimize(self.parameters, derivatives, rmsprop_derivatives)
             prev_cost = cost
 
             curr_batch_index += batch_size
-            if curr_batch_index + batch_size >= X.shape[1]:
+            if curr_batch_index >= X.shape[1]:
                 curr_batch_index = 0
 
             if self.iteration % 100 == 0 :
